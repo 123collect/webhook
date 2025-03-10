@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Webhook Randomizer & Logger</title>
+  <style>
+    body {
+      background-color: #000000;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+
+    input, button, select {
+      padding: 10px;
+      margin: 5px;
+      background-color: #333;
+      color: white;
+      border: 1px solid #666;
+    }
+
+    button:hover, select:hover {
+      background-color: #555;
+    }
+
+    .message-log {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #444;
+      background-color: #222;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .mode-toggle {
+      margin-top: 20px;
+      padding: 10px;
+      background-color: #444;
+      cursor: pointer;
+      border: 1px solid #666;
+    }
+
+    .mode-toggle:hover {
+      background-color: #555;
+    }
+
+    .log-section {
+      margin-bottom: 20px;
+    }
+
+    .log-header {
+      font-size: 18px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Webhook Randomizer & Logger</h1>
+
+  <div>
+    <label for="times">How many times to randomize webhooks?</label>
+    <input type="number" id="times" min="1" value="1">
+    <button onclick="randomizeWebhooks()">Randomize Webhooks</button>
+  </div>
+
+  <div id="guess-mode" style="display: block;">
+    <h2>Guess Mode</h2>
+    <label for="webhook">Webhook URL:</label>
+    <input type="text" id="webhook" placeholder="Enter Webhook URL">
+    <label for="message">Custom Message:</label>
+    <input type="text" id="message" placeholder="Enter your message">
+    <button onclick="sendWebhook()">Send Message</button>
+  </div>
+
+  <div id="use-logged-mode" style="display: none;">
+    <h2>Use Logged Webhook</h2>
+    <label for="logged-webhook">Select Webhook from Log:</label>
+    <select id="logged-webhook">
+      <option value="">-- Select Successful Webhook --</option>
+    </select>
+    <label for="specific-message">Custom Message:</label>
+    <input type="text" id="specific-message" placeholder="Enter your message">
+    <button onclick="sendLoggedWebhook()">Send to Logged Webhook</button>
+  </div>
+
+  <div class="message-log" id="log">
+    <h3>Log</h3>
+    <div class="log-section" id="success-log">
+      <h4 class="log-header">Successful Webhooks</h4>
+      <pre id="success-log-content">No successful logs yet.</pre>
+    </div>
+    <div class="log-section" id="fail-log">
+      <h4 class="log-header">Failed Webhooks</h4>
+      <pre id="fail-log-content">No failed logs yet.</pre>
+    </div>
+  </div>
+
+  <div class="mode-toggle" onclick="toggleMode()">Switch to Use Logged Mode</div>
+
+  <script>
+    let successfulWebhooks = [];
+    let failedWebhooks = [];
+
+    // Function to randomize webhook URLs and send the message
+    async function randomizeWebhooks() {
+      const times = document.getElementById('times').value;
+      const successLogContent = document.getElementById('success-log-content');
+      const failLogContent = document.getElementById('fail-log-content');
+
+      for (let i = 0; i < times; i++) {
+        const webhook = generateRandomWebhook();
+        const message = document.getElementById('message').value;
+
+        const result = await sendWebhookToRandomized(webhook, message);
+
+        if (result.success) {
+          successLogContent.textContent += `Success: Webhook ${webhook} was successful!\n`;
+          // Save successful webhook
+          successfulWebhooks.push(webhook);
+          updateWebhookSelect();
+        } else {
+          failLogContent.textContent += `Failed: Webhook ${webhook} failed.\n`;
+          failedWebhooks.push(webhook);
+        }
+      }
+    }
+
+    // Send webhook to randomized URL
+    async function sendWebhookToRandomized(webhook, message) {
+      try {
+        const response = await fetch(webhook, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: message })
+        });
+        if (response.status === 204) {
+          return { success: true };
+        } else {
+          return { success: false };
+        }
+      } catch (error) {
+        return { success: false };
+      }
+    }
+
+    // Generate a realistic webhook (real webhooks are longer and have a structured format)
+    function generateRandomWebhook() {
+      const randomID = Math.random().toString(36).substr(2, 8); // Random string for demo
+      return `https://discord.com/api/webhooks/123456789012345678/ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefg1234567890`;
+    }
+
+    // Send the custom message to a user-entered webhook in Guess Mode
+    async function sendWebhook() {
+      const webhook = document.getElementById('webhook').value;
+      const message = document.getElementById('message').value;
+
+      const result = await sendWebhookToRandomized(webhook, message);
+
+      const successLogContent = document.getElementById('success-log-content');
+      const failLogContent = document.getElementById('fail-log-content');
+
+      if (result.success) {
+        successLogContent.textContent += `Success: Webhook ${webhook} was successful!\n`;
+        successfulWebhooks.push(webhook);
+        updateWebhookSelect();
+      } else {
+        failLogContent.textContent += `Failed: Webhook ${webhook} failed.\n`;
+        failedWebhooks.push(webhook);
+      }
+    }
+
+    // Send the custom message to a selected logged webhook in Use Logged Mode
+    async function sendLoggedWebhook() {
+      const selectedWebhook = document.getElementById('logged-webhook').value;
+      const message = document.getElementById('specific-message').value;
+
+      if (!selectedWebhook) {
+        alert('Please select a logged webhook!');
+        return;
+      }
+
+      const result = await sendWebhookToRandomized(selectedWebhook, message);
+
+      const successLogContent = document.getElementById('success-log-content');
+      const failLogContent = document.getElementById('fail-log-content');
+
+      if (result.success) {
+        successLogContent.textContent += `Success: Sent message to logged webhook ${selectedWebhook}!\n`;
+      } else {
+        failLogContent.textContent += `Failed: Sending message to logged webhook ${selectedWebhook} failed.\n`;
+      }
+    }
+
+    // Update the logged webhooks in the dropdown (only successful ones)
+    function updateWebhookSelect() {
+      const select = document.getElementById('logged-webhook');
+      select.innerHTML = `<option value="">-- Select Successful Webhook --</option>`;
+      successfulWebhooks.forEach(webhook => {
+        const option = document.createElement('option');
+        option.value = webhook;
+        option.textContent = webhook;
+        select.appendChild(option);
+      });
+    }
+
+    // Toggle between Guess Mode and Use Logged Mode
+    function toggleMode() {
+      const guessMode = document.getElementById('guess-mode');
+      const useLoggedMode = document.getElementById('use-logged-mode');
+      const modeToggleText = document.querySelector('.mode-toggle');
+
+      if (guessMode.style.display === 'block') {
+        guessMode.style.display = 'none';
+        useLoggedMode.style.display = 'block';
+        modeToggleText.textContent = 'Switch to Guess Mode';
+      } else {
+        guessMode.style.display = 'block';
+        useLoggedMode.style.display = 'none';
+        modeToggleText.textContent = 'Switch to Use Logged Mode';
+      }
+    }
+  </script>
+</body>
+</html>
