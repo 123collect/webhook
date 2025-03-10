@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Webhook Randomizer & Logger</title>
+  <title>Webhook & Discord Bot Interactions</title>
   <style>
     body {
       background-color: #000000;
@@ -25,13 +25,12 @@
       background-color: #555;
     }
 
-    .message-log {
-      margin-top: 20px;
-      padding: 10px;
-      border: 1px solid #444;
-      background-color: #222;
-      max-height: 300px;
-      overflow-y: auto;
+    .tab-content {
+      display: none;
+    }
+
+    .active-tab {
+      display: block;
     }
 
     .mode-toggle {
@@ -54,80 +53,108 @@
       font-size: 18px;
       margin-top: 10px;
     }
+
+    #permissions-panel {
+      display: none;
+    }
+
+    .permissions-options {
+      margin: 10px;
+    }
   </style>
 </head>
 <body>
-  <h1>Webhook Randomizer & Logger</h1>
+  <h1>Webhook & Discord Bot Interactions</h1>
 
   <div>
-    <label for="times">How many times to randomize webhooks?</label>
-    <input type="number" id="times" min="1" value="1">
-    <button onclick="randomizeWebhooks()">Randomize Webhooks</button>
+    <button class="mode-toggle" onclick="switchTab('webhook-tab')">Webhook Tab</button>
+    <button class="mode-toggle" onclick="switchTab('bot-tab')">Discord Bot Tab</button>
   </div>
 
-  <div id="guess-mode" style="display: block;">
-    <h2>Guess Mode</h2>
-    <label for="webhook">Webhook URL:</label>
-    <input type="text" id="webhook" placeholder="Enter Webhook URL">
+  <!-- Webhook Tab -->
+  <div id="webhook-tab" class="tab-content active-tab">
+    <h2>Webhook Tab</h2>
+    <label for="webhook">Enter Webhook URL:</label>
+    <input type="text" id="webhook" placeholder="Enter your webhook URL">
     <label for="message">Custom Message:</label>
-    <input type="text" id="message" placeholder="Enter your message">
+    <input type="text" id="webhook-message" placeholder="Enter your message">
     <button onclick="sendWebhook()">Send Message</button>
-  </div>
 
-  <div id="use-logged-mode" style="display: none;">
-    <h2>Use Logged Webhook</h2>
-    <label for="logged-webhook">Select Webhook from Log:</label>
-    <select id="logged-webhook">
-      <option value="">-- Select Successful Webhook --</option>
-    </select>
-    <label for="specific-message">Custom Message:</label>
-    <input type="text" id="specific-message" placeholder="Enter your message">
-    <button onclick="sendLoggedWebhook()">Send to Logged Webhook</button>
-  </div>
-
-  <div class="message-log" id="log">
-    <h3>Log</h3>
-    <div class="log-section" id="success-log">
-      <h4 class="log-header">Successful Webhooks</h4>
-      <pre id="success-log-content">No successful logs yet.</pre>
-    </div>
-    <div class="log-section" id="fail-log">
-      <h4 class="log-header">Failed Webhooks</h4>
-      <pre id="fail-log-content">No failed logs yet.</pre>
+    <div class="message-log" id="webhook-log">
+      <h3>Webhook Log</h3>
+      <div class="log-section" id="webhook-success-log">
+        <h4 class="log-header">Successful Webhooks</h4>
+        <pre id="webhook-success-log-content">No successful logs yet.</pre>
+      </div>
+      <div class="log-section" id="webhook-fail-log">
+        <h4 class="log-header">Failed Webhooks</h4>
+        <pre id="webhook-fail-log-content">No failed logs yet.</pre>
+      </div>
     </div>
   </div>
 
-  <div class="mode-toggle" onclick="toggleMode()">Switch to Use Logged Mode</div>
+  <!-- Discord Bot Tab -->
+  <div id="bot-tab" class="tab-content">
+    <h2>Discord Bot Tab</h2>
+    <label for="bot-token">Enter Bot Token:</label>
+    <input type="text" id="bot-token" placeholder="Enter your bot token">
+    <button onclick="checkBotPermissions()">Check Permissions</button>
+
+    <div id="permissions-panel">
+      <h3>Bot Permissions</h3>
+      <div id="permissions-list"></div>
+      
+      <div class="permissions-options">
+        <label for="channel-select">Select Channel to Send Message:</label>
+        <select id="channel-select">
+          <option value="">-- Select Channel --</option>
+        </select>
+      </div>
+      
+      <div class="permissions-options">
+        <label for="send-message">Send Message to Channel:</label>
+        <input type="text" id="send-message" placeholder="Enter message to send">
+        <button onclick="sendMessage()">Send Message</button>
+      </div>
+      
+      <div class="permissions-options">
+        <label for="read-messages">Read Last 10 Messages:</label>
+        <button onclick="readMessages()">Read Messages</button>
+      </div>
+    </div>
+
+    <div id="bot-log">
+      <h3>Bot Log</h3>
+      <div id="bot-log-content">No bot actions yet.</div>
+    </div>
+  </div>
 
   <script>
-    let successfulWebhooks = [];
-    let failedWebhooks = [];
+    // Switch between tabs (Webhook & Bot)
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active-tab');
+      });
+      document.getElementById(tabId).classList.add('active-tab');
+    }
 
-    // Function to randomize webhook URLs and send the message
-    async function randomizeWebhooks() {
-      const times = document.getElementById('times').value;
-      const successLogContent = document.getElementById('success-log-content');
-      const failLogContent = document.getElementById('fail-log-content');
-
-      for (let i = 0; i < times; i++) {
-        const webhook = generateRandomWebhook();
-        const message = document.getElementById('message').value;
-
-        const result = await sendWebhookToRandomized(webhook, message);
-
-        if (result.success) {
-          successLogContent.textContent += `Success: Webhook ${webhook} was successful!\n`;
-          // Save successful webhook
-          successfulWebhooks.push(webhook);
-          updateWebhookSelect();
-        } else {
-          failLogContent.textContent += `Failed: Webhook ${webhook} failed.\n`;
-          failedWebhooks.push(webhook);
-        }
+    // Webhook sending and logging
+    async function sendWebhook() {
+      const webhookUrl = document.getElementById('webhook').value;
+      const message = document.getElementById('webhook-message').value;
+      
+      const result = await sendWebhookToRandomized(webhookUrl, message);
+      const successLogContent = document.getElementById('webhook-success-log-content');
+      const failLogContent = document.getElementById('webhook-fail-log-content');
+      
+      if (result.success) {
+        successLogContent.textContent += `Success: Webhook ${webhookUrl} was successful!\n`;
+      } else {
+        failLogContent.textContent += `Failed: Webhook ${webhookUrl} failed.\n`;
       }
     }
 
-    // Send webhook to randomized URL
+    // Function to send webhook message
     async function sendWebhookToRandomized(webhook, message) {
       try {
         const response = await fetch(webhook, {
@@ -145,80 +172,147 @@
       }
     }
 
-    // Generate a realistic webhook (real webhooks are longer and have a structured format)
-    function generateRandomWebhook() {
-      const randomID = Math.random().toString(36).substr(2, 8); // Random string for demo
-      return `https://discord.com/api/webhooks/123456789012345678/ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefg1234567890`;
-    }
-
-    // Send the custom message to a user-entered webhook in Guess Mode
-    async function sendWebhook() {
-      const webhook = document.getElementById('webhook').value;
-      const message = document.getElementById('message').value;
-
-      const result = await sendWebhookToRandomized(webhook, message);
-
-      const successLogContent = document.getElementById('success-log-content');
-      const failLogContent = document.getElementById('fail-log-content');
-
-      if (result.success) {
-        successLogContent.textContent += `Success: Webhook ${webhook} was successful!\n`;
-        successfulWebhooks.push(webhook);
-        updateWebhookSelect();
-      } else {
-        failLogContent.textContent += `Failed: Webhook ${webhook} failed.\n`;
-        failedWebhooks.push(webhook);
-      }
-    }
-
-    // Send the custom message to a selected logged webhook in Use Logged Mode
-    async function sendLoggedWebhook() {
-      const selectedWebhook = document.getElementById('logged-webhook').value;
-      const message = document.getElementById('specific-message').value;
-
-      if (!selectedWebhook) {
-        alert('Please select a logged webhook!');
+    // Discord Bot Permissions Check
+    async function checkBotPermissions() {
+      const botToken = document.getElementById('bot-token').value;
+      
+      if (!botToken) {
+        alert('Please enter a valid bot token.');
         return;
       }
 
-      const result = await sendWebhookToRandomized(selectedWebhook, message);
-
-      const successLogContent = document.getElementById('success-log-content');
-      const failLogContent = document.getElementById('fail-log-content');
-
+      const result = await fetchBotPermissions(botToken);
+      
       if (result.success) {
-        successLogContent.textContent += `Success: Sent message to logged webhook ${selectedWebhook}!\n`;
+        const permissionsList = document.getElementById('permissions-list');
+        const channelSelect = document.getElementById('channel-select');
+        
+        permissionsList.innerHTML = `
+          <p>Bot Permissions: ${result.permissions.join(', ')}</p>
+        `;
+        
+        // Populate channel options (example data)
+        channelSelect.innerHTML = '';
+        result.channels.forEach(channel => {
+          const option = document.createElement('option');
+          option.value = channel.id;
+          option.textContent = channel.name;
+          channelSelect.appendChild(option);
+        });
+
+        document.getElementById('permissions-panel').style.display = 'block';
       } else {
-        failLogContent.textContent += `Failed: Sending message to logged webhook ${selectedWebhook} failed.\n`;
+        alert('Failed to fetch bot permissions.');
       }
     }
 
-    // Update the logged webhooks in the dropdown (only successful ones)
-    function updateWebhookSelect() {
-      const select = document.getElementById('logged-webhook');
-      select.innerHTML = `<option value="">-- Select Successful Webhook --</option>`;
-      successfulWebhooks.forEach(webhook => {
-        const option = document.createElement('option');
-        option.value = webhook;
-        option.textContent = webhook;
-        select.appendChild(option);
-      });
+    // Fetch bot permissions from Discord API
+    async function fetchBotPermissions(botToken) {
+      try {
+        const response = await fetch(`https://discord.com/api/v10/users/@me`, {
+          method: 'GET',
+          headers: { 'Authorization': `Bot ${botToken}` },
+        });
+
+        const data = await response.json();
+
+        if (data.id) {
+          // Example response for channels and permissions
+          return {
+            success: true,
+            permissions: ['SEND_MESSAGES', 'READ_MESSAGES'],
+            channels: [
+              { id: '123456789012345678', name: 'general' },
+              { id: '987654321098765432', name: 'announcements' },
+            ],
+          };
+        } else {
+          return { success: false };
+        }
+      } catch (error) {
+        return { success: false };
+      }
     }
 
-    // Toggle between Guess Mode and Use Logged Mode
-    function toggleMode() {
-      const guessMode = document.getElementById('guess-mode');
-      const useLoggedMode = document.getElementById('use-logged-mode');
-      const modeToggleText = document.querySelector('.mode-toggle');
+    // Send message to a selected channel (Bot)
+    async function sendMessage() {
+      const botToken = document.getElementById('bot-token').value;
+      const message = document.getElementById('send-message').value;
+      const channelId = document.getElementById('channel-select').value;
+      
+      if (!channelId || !message) {
+        alert('Please select a channel and enter a message.');
+        return;
+      }
 
-      if (guessMode.style.display === 'block') {
-        guessMode.style.display = 'none';
-        useLoggedMode.style.display = 'block';
-        modeToggleText.textContent = 'Switch to Guess Mode';
+      const result = await sendBotMessage(botToken, channelId, message);
+      
+      if (result.success) {
+        document.getElementById('bot-log-content').textContent = `Message sent to channel ${channelId}.`;
       } else {
-        guessMode.style.display = 'block';
-        useLoggedMode.style.display = 'none';
-        modeToggleText.textContent = 'Switch to Use Logged Mode';
+        document.getElementById('bot-log-content').textContent = `Failed to send message.`;
+      }
+    }
+
+    // Send bot message to a channel
+    async function sendBotMessage(botToken, channelId, message) {
+      try {
+        const response = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bot ${botToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ content: message }),
+        });
+
+        if (response.status === 200) {
+          return { success: true };
+        } else {
+          return { success: false };
+        }
+      } catch (error) {
+        return { success: false };
+      }
+    }
+
+    // Read the last 10 messages from a channel
+    async function readMessages() {
+      const botToken = document.getElementById('bot-token').value;
+      const channelId = document.getElementById('channel-select').value;
+      
+      if (!channelId) {
+        alert('Please select a channel to read messages.');
+        return;
+      }
+
+      const result = await fetchMessages(botToken, channelId);
+      
+      if (result.success) {
+        document.getElementById('bot-log-content').textContent = `Last 10 messages from channel ${channelId}: ${result.messages.join(', ')}`;
+      } else {
+        document.getElementById('bot-log-content').textContent = `Failed to read messages.`;
+      }
+    }
+
+    // Fetch last 10 messages from a channel
+    async function fetchMessages(botToken, channelId) {
+      try {
+        const response = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages?limit=10`, {
+          method: 'GET',
+          headers: { 'Authorization': `Bot ${botToken}` },
+        });
+
+        const data = await response.json();
+        
+        if (data.length > 0) {
+          const messages = data.map(msg => msg.content);
+          return { success: true, messages };
+        } else {
+          return { success: false };
+        }
+      } catch (error) {
+        return { success: false };
       }
     }
   </script>
